@@ -151,6 +151,60 @@ step    150/700  loss 5.7719  lr 1.00e-03  |grad| 0.42  2,796 tok/s  eta 53.1m
 - **val diverging from train** is overfitting: get more data, raise `dropout`,
   or shrink the model.
 
+## What a real run actually looks like
+
+A measured run, so the table above isn't just a claim. `configs/tiny.json`,
+11M parameters, 700 steps on the Python standard library (2.9M training
+tokens), 70 minutes on four CPU cores:
+
+| Step | Train loss | Val loss | Val ppl | Gap |
+|---|---|---|---|---|
+| 0 | 8.39 | — | — | — |
+| 150 | 3.52 | 4.37 | 79.0 | 0.85 |
+| 300 | 2.85 | 3.92 | 50.2 | 1.07 |
+| 450 | 2.23 | 3.63 | 37.8 | 1.40 |
+| 700 | 2.07 | 3.40 | 29.9 | 1.32 |
+
+Step 0 lands on `ln(4096) = 8.32` as it must — a fresh model guessing
+uniformly. Validation improved throughout, so the run had not yet saturated,
+but train loss fell about twice as fast and the gap settled above 1.3. That
+gap is the signature of a model too large for its corpus: 11M parameters
+against 2.9M tokens is roughly 75x past the ~20-tokens-per-parameter rule, so
+it is memorizing the stdlib rather than generalizing from it.
+
+Prompted with `def binary_search(arr, target):`, the finished model produces:
+
+```python
+def binary_search(arr, target):
+    """Get the current path to the file.  After the path is true.
+
+    If the path is the directory (including the path
+    is relative to the path that will be used.
+    """
+    if path is None:
+        path = path.split('/')
+    else:
+        return path
+```
+
+This is the expected result, not a failure. Valid syntax, correct indentation,
+a plausible docstring, real control flow — and no relationship whatsoever
+between the function's name and its body. Syntax is what the first few million
+tokens buy. Semantics is what the next several orders of magnitude buy.
+
+Degenerate repetition is also normal at this scale:
+
+```python
+class Stack:
+    def __init__(self):
+        self.args = self.args
+        self.args = []
+        self.args = [self.args]
+```
+
+The fix is more data, not more steps. If you see this, check the gap column
+first.
+
 ## Layout
 
 ```
