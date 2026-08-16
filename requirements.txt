@@ -1,0 +1,6 @@
+torch>=2.1
+numpy>=1.24
+regex>=2023.0
+
+# Tests only:
+pytest>=7.0

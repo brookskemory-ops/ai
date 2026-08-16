@@ -1,0 +1,26 @@
+{
+  "model": {
+    "vocab_size": 4096,
+    "block_size": 256,
+    "n_layer": 6,
+    "n_head": 6,
+    "n_kv_head": 2,
+    "n_embd": 384,
+    "dropout": 0.1,
+    "tie_embeddings": true
+  },
+  "train": {
+    "data_dir": "data/tokens",
+    "out_dir": "checkpoints/tiny",
+    "batch_size": 16,
+    "grad_accum_steps": 4,
+    "max_steps": 3000,
+    "learning_rate": 0.001,
+    "warmup_steps": 150,
+    "eval_interval": 250,
+    "eval_batches": 20,
+    "checkpoint_interval": 500,
+    "device": "auto",
+    "seed": 1337
+  }
+}

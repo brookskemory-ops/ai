@@ -1,0 +1,30 @@
+{
+  "model": {
+    "vocab_size": 16384,
+    "block_size": 1024,
+    "n_layer": 12,
+    "n_head": 12,
+    "n_kv_head": 4,
+    "n_embd": 768,
+    "dropout": 0.0,
+    "tie_embeddings": true
+  },
+  "train": {
+    "data_dir": "data/tokens",
+    "out_dir": "checkpoints/small",
+    "batch_size": 12,
+    "grad_accum_steps": 40,
+    "max_steps": 30000,
+    "learning_rate": 0.0006,
+    "min_lr_ratio": 0.1,
+    "warmup_steps": 1000,
+    "weight_decay": 0.1,
+    "eval_interval": 500,
+    "eval_batches": 50,
+    "checkpoint_interval": 1000,
+    "device": "auto",
+    "dtype": "auto",
+    "compile_model": true,
+    "seed": 1337
+  }
+}
