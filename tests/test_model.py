@@ -111,6 +111,47 @@ def test_generate_beyond_context_window(model, config):
     assert out.shape == (1, config.block_size + 6)
 
 
+def test_positions_keep_advancing_past_the_window(config):
+    """Absolute position must not be inferred from cache length.
+
+    Once the sliding window starts evicting entries the cache stops growing,
+    so a length-derived offset hands every subsequent token the *same*
+    position. Relative distances between recent tokens then collapse to zero
+    and the model loses track of order -- with no crash and no loss signal,
+    since this only happens during generation.
+    """
+    from scratchgpt.model import Block
+
+    torch.manual_seed(0)
+    model = GPT(config).eval()
+    prompt_len = config.block_size - 2
+    overrun = 8
+
+    seen: list[int | None] = []
+    original = Block.forward
+
+    def spy(self, x, kv_cache=None, pos_offset=None):
+        seen.append(pos_offset)
+        return original(self, x, kv_cache, pos_offset)
+
+    Block.forward = spy
+    try:
+        model.generate(
+            torch.zeros((1, prompt_len), dtype=torch.long),
+            max_new_tokens=overrun,
+            temperature=0.0,
+        )
+    finally:
+        Block.forward = original
+
+    per_layer = seen[:: config.n_layer]
+    # The first pass consumes the whole prompt; each later pass consumes one
+    # token, and the final token is appended without another forward.
+    assert per_layer == [0] + list(range(prompt_len, prompt_len + overrun - 1))
+    # The last query sits past block_size, which is the whole point.
+    assert per_layer[-1] > config.block_size
+
+
 def test_greedy_generation_is_deterministic(model, config):
     idx = torch.zeros((1, 4), dtype=torch.long)
     a = model.generate(idx, max_new_tokens=6, temperature=0.0)

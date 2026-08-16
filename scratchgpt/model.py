@@ -59,6 +59,9 @@ class RotaryEmbedding(nn.Module):
         self._build_cache(max_seq_len)
 
     def _build_cache(self, seq_len: int) -> None:
+        # Double rather than grow to exactly what was asked for, so a long
+        # generation rebuilds the table a handful of times instead of per token.
+        seq_len = max(seq_len, 2 * getattr(self, "cached_len", 0))
         # Channel pair j rotates at frequency theta^(-2j/head_dim): the first
         # pairs spin fast and encode local order, the last barely move and carry
         # long-range position.
@@ -125,6 +128,7 @@ class CausalSelfAttention(nn.Module):
         self,
         x: torch.Tensor,
         kv_cache: tuple[torch.Tensor, torch.Tensor] | None = None,
+        pos_offset: int | None = None,
     ) -> tuple[torch.Tensor, tuple[torch.Tensor, torch.Tensor] | None]:
         B, T, C = x.shape
 
@@ -133,8 +137,14 @@ class CausalSelfAttention(nn.Module):
         v = self.v_proj(x).view(B, T, self.n_kv_head, self.head_dim).transpose(1, 2)
 
         # Past tokens were rotated by their own absolute positions already, so
-        # the new tokens start where the cache left off.
-        offset = kv_cache[0].shape[-2] if kv_cache is not None else 0
+        # the new tokens continue from there. The caller passes the absolute
+        # position explicitly because it does not always equal the cache length:
+        # once a sliding window starts dropping old entries, the cache stops
+        # growing while positions keep advancing. Deriving the offset from the
+        # cache length there would hand every new token the same position and
+        # silently corrupt every relative distance.
+        cached_len = kv_cache[0].shape[-2] if kv_cache is not None else 0
+        offset = cached_len if pos_offset is None else pos_offset
         q = self.rope(q, offset)
         k = self.rope(k, offset)
 
@@ -153,7 +163,7 @@ class CausalSelfAttention(nn.Module):
         y = F.scaled_dot_product_attention(
             q, k, v,
             dropout_p=self.dropout if self.training else 0.0,
-            is_causal=(offset == 0 and T > 1),
+            is_causal=(cached_len == 0 and T > 1),
         )
 
         y = y.transpose(1, 2).contiguous().view(B, T, -1)
@@ -195,8 +205,8 @@ class Block(nn.Module):
         self.mlp_norm = RMSNorm(config.n_embd)
         self.mlp = SwiGLU(config)
 
-    def forward(self, x, kv_cache=None):
-        attn_out, new_cache = self.attn(self.attn_norm(x), kv_cache)
+    def forward(self, x, kv_cache=None, pos_offset=None):
+        attn_out, new_cache = self.attn(self.attn_norm(x), kv_cache, pos_offset)
         x = x + attn_out
         x = x + self.mlp(self.mlp_norm(x))
         return x, new_cache
@@ -250,10 +260,18 @@ class GPT(nn.Module):
         idx: torch.Tensor,
         targets: torch.Tensor | None = None,
         kv_caches: list | None = None,
+        pos_offset: int | None = None,
     ):
-        """`idx` is (B, T) token ids. With `targets`, also returns the loss."""
+        """`idx` is (B, T) token ids. With `targets`, also returns the loss.
+
+        `pos_offset` is the absolute position of the first token in `idx`. It
+        defaults to the cache length, which is right until a sliding window
+        starts evicting entries; `generate` tracks it separately for that reason.
+        """
         _, T = idx.shape
         past = kv_caches[0][0].shape[-2] if kv_caches and kv_caches[0] is not None else 0
+        # The bound is on how many keys attention sees at once, not on how far
+        # the absolute position has advanced.
         if past + T > self.config.block_size:
             raise ValueError(
                 f"sequence of {past + T} tokens exceeds block_size "
@@ -265,7 +283,7 @@ class GPT(nn.Module):
         new_caches = []
         for i, block in enumerate(self.blocks):
             cache = kv_caches[i] if kv_caches is not None else None
-            x, updated = block(x, cache)
+            x, updated = block(x, cache, pos_offset)
             new_caches.append(updated)
 
         x = self.final_norm(x)
@@ -329,6 +347,9 @@ class GPT(nn.Module):
         self.eval()
         caches = [None] * len(self.blocks) if use_cache else None
         cursor = idx
+        # Absolute position of the first token in `cursor`. Tracked separately
+        # from the cache length, which stops growing once the window slides.
+        pos = 0
 
         for _ in range(max_new_tokens):
             # Once the context is full, drop from the left. With a cache active
@@ -338,12 +359,16 @@ class GPT(nn.Module):
                 if past + cursor.shape[1] > self.config.block_size:
                     keep = self.config.block_size - cursor.shape[1]
                     caches = [(k[..., -keep:, :], v[..., -keep:, :]) for k, v in caches]
-            elif cursor.shape[1] > self.config.block_size:
+            elif caches is None and cursor.shape[1] > self.config.block_size:
+                # No cache: the whole prefix is re-read each step, so the window
+                # restarts at position 0. RoPE is relative, so the distances
+                # inside the window are the same either way.
                 cursor = cursor[:, -self.config.block_size :]
 
-            logits, _, caches_out = self(cursor, kv_caches=caches)
+            logits, _, caches_out = self(cursor, kv_caches=caches, pos_offset=pos)
             if caches is not None:
                 caches = caches_out
+                pos += cursor.shape[1]
 
             logits = logits[:, -1, :]
 
