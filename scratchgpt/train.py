@@ -217,7 +217,8 @@ def main() -> int:
                 print(
                     f"step {step:6d}/{tcfg.max_steps}  loss {total_loss:.4f}  "
                     f"lr {lr:.2e}  |grad| {grad_norm:.2f}  "
-                    f"{rate:,.0f} tok/s  eta {remaining / 60:.1f}m"
+                    f"{rate:,.0f} tok/s  eta {remaining / 60:.1f}m",
+                    flush=True,
                 )
 
             is_last = step == tcfg.max_steps - 1
@@ -227,7 +228,8 @@ def main() -> int:
                 # effectively choosing between at each position.
                 print(
                     f"  eval @ {step}: train {losses['train']:.4f}  "
-                    f"val {losses['val']:.4f}  (val ppl {math.exp(min(losses['val'], 20)):.1f})"
+                    f"val {losses['val']:.4f}  (val ppl {math.exp(min(losses['val'], 20)):.1f})",
+                    flush=True,
                 )
                 history.append({"step": step, **losses})
                 (out_dir / "history.json").write_text(json.dumps(history, indent=2) + "\n")
@@ -235,7 +237,7 @@ def main() -> int:
                 if losses["val"] < best_val:
                     best_val = losses["val"]
                     save_checkpoint(ckpt_path, model, optimizer, config, step, best_val)
-                    print(f"  new best val loss -> saved {ckpt_path}")
+                    print(f"  new best val loss -> saved {ckpt_path}", flush=True)
                 elif tcfg.always_save_checkpoint:
                     save_checkpoint(ckpt_path, model, optimizer, config, step, best_val)
 

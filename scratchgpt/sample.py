@@ -55,8 +55,10 @@ def generate_text(model, tokenizer, prompt, device, args) -> str:
         stop_token=tokenizer.special_tokens.get(END_OF_TEXT),
     )
     text = tokenizer.decode(out[0].tolist())
-    # The end-of-text marker is a document boundary, not output.
-    return text.split(END_OF_TEXT)[0] if END_OF_TEXT in text[len(prompt):] else text
+    # The end-of-text marker is a document boundary, not output. Search from the
+    # end of the prompt so a marker the user typed themselves is left alone.
+    cut = text.find(END_OF_TEXT, len(prompt))
+    return text if cut == -1 else text[:cut]
 
 
 def main() -> int:

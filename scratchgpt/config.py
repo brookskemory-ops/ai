@@ -136,9 +136,6 @@ class TrainConfig:
     seed: int = 1337
     """Set this and everything above, and the run is reproducible."""
 
-    num_workers: int = 0
-    """Background workers for batch loading. 0 loads in the main process."""
-
 
 @dataclass
 class Config:

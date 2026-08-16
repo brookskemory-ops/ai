@@ -12,6 +12,7 @@ import json
 from pathlib import Path
 
 import numpy as np
+import torch
 
 from .tokenizer import END_OF_TEXT, Tokenizer
 
@@ -180,13 +181,9 @@ class TokenDataset:
         """Sample `batch_size` windows uniformly at random."""
         high = len(self)
         if generator is not None:
-            import torch
-
             starts = torch.randint(high, (batch_size,), generator=generator).numpy()
         else:
             starts = np.random.randint(0, high, size=batch_size)
-
-        import torch
 
         # astype(int64) copies out of the memmap, which is required: torch
         # cannot own memory backed by a mapped file.
