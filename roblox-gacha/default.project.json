@@ -1,0 +1,22 @@
+{
+  "name": "gacha-starter",
+  "globIgnorePaths": ["**/*.spec.luau"],
+  "tree": {
+    "$className": "DataModel",
+
+    "ReplicatedStorage": {
+      "GachaCore": { "$path": "src/shared/GachaCore" },
+      "GachaRemotes": { "$path": "src/shared/GachaRemotes.luau" }
+    },
+
+    "ServerScriptService": {
+      "Gacha": { "$path": "src/server/Gacha" }
+    },
+
+    "StarterPlayer": {
+      "StarterPlayerScripts": {
+        "GachaClient": { "$path": "src/client/GachaClient" }
+      }
+    }
+  }
+}

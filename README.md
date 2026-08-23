@@ -244,3 +244,12 @@ python -m scratchgpt.train --config configs/small.json
 `bfloat16` autocast and `torch.compile` switch on automatically or via config.
 For multi-GPU, wrap the model in `DistributedDataParallel` in `train.py` and
 divide `grad_accum_steps` by the world size — the rest of the loop is unchanged.
+
+## Also in this repository
+
+`roblox-gacha/` is unrelated to the language model: a server-authoritative
+gacha system for Roblox, with pity, rate-up banners, and an odds panel
+generated from the same numbers the server rolls against. Its probability model
+is pure Luau and runs under the standalone interpreter, so `luau tests/run.luau`
+in that folder checks the drop rates without opening Studio. See
+[roblox-gacha/README.md](roblox-gacha/README.md).
