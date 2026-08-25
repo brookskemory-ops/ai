@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="en" data-token="__GAMEDECK_TOKEN__">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>GameDeck</title>
+  <link rel="stylesheet" href="/styles.css">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><text y='26' font-size='26'>🎮</text></svg>">
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">
+      <span class="brand-mark">▶</span>
+      <span class="brand-name">GameDeck</span>
+    </div>
+    <div class="search-wrap">
+      <input id="search" type="search" placeholder="Search your library" autocomplete="off" spellcheck="false">
+    </div>
+    <div class="topbar-actions">
+      <select id="sort" title="Sort library">
+        <option value="name">Alphabetical</option>
+        <option value="recent">Recently played</option>
+        <option value="playtime">Most played</option>
+        <option value="added">Recently added</option>
+      </select>
+      <button id="add-games" class="btn btn-primary">Add games</button>
+    </div>
+  </header>
+
+  <main class="layout">
+    <nav class="rail">
+      <ul class="filters">
+        <li><button class="filter is-active" data-filter="all">All games <span class="count" data-count="all">0</span></button></li>
+        <li><button class="filter" data-filter="favorite">Favorites <span class="count" data-count="favorite">0</span></button></li>
+        <li><button class="filter" data-filter="recent">Recently played <span class="count" data-count="recent">0</span></button></li>
+        <li><button class="filter" data-filter="running">Running <span class="count" data-count="running">0</span></button></li>
+        <li><button class="filter" data-filter="missing">Missing files <span class="count" data-count="missing">0</span></button></li>
+      </ul>
+      <div class="rail-heading">Library</div>
+      <ul id="rail-list" class="rail-list"></ul>
+    </nav>
+
+    <section class="content">
+      <div id="grid" class="grid"></div>
+      <div id="empty" class="empty" hidden>
+        <div class="empty-art">🎮</div>
+        <h2>No games yet</h2>
+        <p>Point GameDeck at the folder where your downloads live and it will
+           work out which .exe starts each one.</p>
+        <button class="btn btn-primary" data-open-add>Add games</button>
+      </div>
+    </section>
+  </main>
+
+  <!-- Game detail -->
+  <div id="detail" class="sheet" hidden>
+    <div class="sheet-backdrop" data-close-detail></div>
+    <article class="sheet-body detail">
+      <div class="detail-hero">
+        <div id="detail-art" class="detail-art"></div>
+        <button class="icon-btn detail-close" data-close-detail title="Close">✕</button>
+        <div class="detail-heading">
+          <h2 id="detail-name">Game</h2>
+          <div id="detail-path" class="detail-path"></div>
+        </div>
+      </div>
+
+      <div class="detail-bar">
+        <button id="detail-play" class="btn btn-play">Play</button>
+        <button id="detail-fav" class="btn btn-ghost" title="Toggle favorite">☆ Favorite</button>
+        <button id="detail-folder" class="btn btn-ghost">Open folder</button>
+        <button id="detail-cover" class="btn btn-ghost">Set cover</button>
+        <button id="detail-remove" class="btn btn-ghost btn-danger">Remove</button>
+      </div>
+
+      <div class="detail-stats">
+        <div class="stat"><span class="stat-label">Play time</span><strong id="stat-playtime">—</strong></div>
+        <div class="stat"><span class="stat-label">Last played</span><strong id="stat-last">Never</strong></div>
+        <div class="stat"><span class="stat-label">Sessions</span><strong id="stat-count">0</strong></div>
+        <div class="stat"><span class="stat-label">Status</span><strong id="stat-status">Ready</strong></div>
+      </div>
+
+      <div class="detail-form">
+        <label>Name<input id="field-name" type="text" autocomplete="off"></label>
+        <label>Executable<input id="field-exe" type="text" spellcheck="false"></label>
+        <label>Launch options<input id="field-args" type="text" spellcheck="false" placeholder="-windowed -skipintro"></label>
+        <label>Working folder<input id="field-cwd" type="text" spellcheck="false" placeholder="Defaults to the folder the .exe is in"></label>
+        <label class="wide">Notes<textarea id="field-notes" rows="3" placeholder="Save location, controller setup, where you got to..."></textarea></label>
+        <div class="form-actions">
+          <span id="detail-saved" class="saved-hint"></span>
+          <button id="detail-save" class="btn btn-primary">Save changes</button>
+        </div>
+      </div>
+    </article>
+  </div>
+
+  <!-- Add games -->
+  <div id="add" class="sheet" hidden>
+    <div class="sheet-backdrop" data-close-add></div>
+    <article class="sheet-body add">
+      <header class="add-head">
+        <h2>Add games</h2>
+        <button class="icon-btn" data-close-add title="Close">✕</button>
+      </header>
+
+      <div class="tabs">
+        <button class="tab is-active" data-tab="scan">Scan a folder</button>
+        <button class="tab" data-tab="single">Add one game</button>
+      </div>
+
+      <section class="tab-panel" data-panel="scan">
+        <p class="hint">Choose the folder that holds your game folders — GameDeck
+           looks inside each one and picks the executable that starts it.</p>
+        <div class="row">
+          <input id="scan-path" type="text" spellcheck="false" placeholder="C:\Games">
+          <button id="scan-browse" class="btn btn-ghost">Browse…</button>
+          <button id="scan-run" class="btn btn-primary">Scan</button>
+        </div>
+        <div id="scan-status" class="status"></div>
+        <div id="scan-results" class="results"></div>
+        <div class="results-actions" hidden>
+          <label class="check"><input id="scan-all" type="checkbox" checked> Select all</label>
+          <button id="scan-add" class="btn btn-primary">Add selected</button>
+        </div>
+      </section>
+
+      <section class="tab-panel" data-panel="single" hidden>
+        <p class="hint">Pick the .exe you double-click to start the game.</p>
+        <div class="row">
+          <input id="single-exe" type="text" spellcheck="false" placeholder="C:\Games\Hollow Knight\hollow_knight.exe">
+          <button id="single-browse" class="btn btn-ghost">Browse…</button>
+        </div>
+        <div class="row">
+          <input id="single-name" type="text" placeholder="Name (optional — taken from the file otherwise)">
+          <button id="single-add" class="btn btn-primary">Add game</button>
+        </div>
+        <div id="single-status" class="status"></div>
+      </section>
+    </article>
+  </div>
+
+  <div id="toasts" class="toasts"></div>
+  <input id="cover-file" type="file" accept="image/*" hidden>
+
+  <script src="/app.js"></script>
+</body>
+</html>
